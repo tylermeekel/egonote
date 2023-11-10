@@ -2,14 +2,16 @@ package utils
 
 import (
 	"encoding/json"
-	"io"
+	"net/http"
 )
 
-type JSONResponse struct{
-	Data any
+type JSONResponse struct {
+	Data any `json:"data"`
 }
 
-func WriteJSON(w io.Writer, data any){
+func WriteJSON(w http.ResponseWriter, data any) {
 	res := JSONResponse{Data: data}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(res)
 }
