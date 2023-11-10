@@ -6,5 +6,5 @@ import "github.com/tylermeekel/egonote/internal/types"
 // with server data
 type Database interface {
 	GetNotes() []types.Note
-	GetNote(int) types.Note
+	GetNote(id int) types.Note
 }
