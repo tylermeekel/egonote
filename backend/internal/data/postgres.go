@@ -97,6 +97,14 @@ func (p *Postgres) CreateUser(username, password string) error {
 	return err
 }
 
+func (p *Postgres) GetUser(username string) (types.User, error) {
+	var user types.User
+	row := p.DB.QueryRow("SELECT * FROM users WHERE username=$1", username)
+	err := row.Scan(&user.ID, &user.Username, &user.Password)
+
+	return user, err
+}
+
 func (p *Postgres) UpdateUser(id int, user types.User) error {
 	query :=
 	`UPDATE notes SET 

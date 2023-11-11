@@ -12,6 +12,7 @@ type Database interface {
 	DeleteNote(id int) (types.Note, error)
 
 	CreateUser(username, password string) error
+	GetUser(username string) (types.User, error)
 	DeleteUser(id int) error
 	UpdateUser(id int, user types.User) error
 }
