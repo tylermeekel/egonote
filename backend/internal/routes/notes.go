@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -33,11 +34,11 @@ func (n *NoteRouter) postNote(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&note)
 	if err != nil {
-		utils.WriteJSON(w, "error") //! Temporary implementation
+		utils.WriteJSONError(w, "ID has to be a positive integer")
 		return
 	}
 
-	noteResponse := n.DB.CreateNote(note)
+	noteResponse, err := n.DB.CreateNote(note)
 
 	utils.WriteJSON(w, noteResponse)
 }
@@ -46,59 +47,95 @@ func (n *NoteRouter) postNote(w http.ResponseWriter, r *http.Request) {
 func (n *NoteRouter) getNote(w http.ResponseWriter, r *http.Request) {
 	id := GetIDParam(r)
 	if id < 0 {
-		utils.WriteJSON(w, "error") //! Temporary implementation
+		utils.WriteJSONError(w, "ID has to be a positive integer")
 		return
 	}
 
-	note := n.DB.GetNote(id)
-	utils.WriteJSON(w, note) 
+	note, err := n.DB.GetNote(id)
+	if err != nil {
+		log.Println(err.Error())
+		utils.WriteInternalServerError(w)
+		return
+	}
+
+	utils.WriteJSON(w, note)
 }
 
 func (n *NoteRouter) getNotes(w http.ResponseWriter, r *http.Request) {
-	notes := n.DB.GetNotes()
+	notes, err := n.DB.GetNotes()
+	if err != nil {
+		log.Println(err.Error())
+		utils.WriteInternalServerError(w)
+		return
+	}
+
 	utils.WriteJSON(w, notes)
 }
 
 func (n *NoteRouter) updateNote(w http.ResponseWriter, r *http.Request) {
 	id := GetIDParam(r)
 	if id < 0 {
-		utils.WriteJSON(w, "error") //! Temporary implementation
+		utils.WriteJSONError(w, "ID has to be a positive integer")
 		return
 	}
 
 	var note types.Note
 	err := json.NewDecoder(r.Body).Decode(&note)
-	if err != nil{
-		utils.WriteJSON(w, "error") //! Temporary implementation
+	if err != nil {
+		log.Println(err.Error())
+		utils.WriteInternalServerError(w)
 		return
 	}
 
-	noteResponse := n.DB.UpdateNote(id, note)
+	noteResponse, err := n.DB.UpdateNote(id, note)
+	if err != nil {
+		log.Println(err.Error())
+		utils.WriteInternalServerError(w)
+		return
+	}
+
 	utils.WriteJSON(w, noteResponse)
 }
 
 func (n *NoteRouter) deleteNote(w http.ResponseWriter, r *http.Request) {
 	id := GetIDParam(r)
 	if id < 0 {
-		utils.WriteJSON(w, "error") //! Temporary implementation
+		utils.WriteJSONError(w, "ID has to be a positive integer")
 		return
 	}
 
-	note := n.DB.DeleteNote(id)
+	note, err := n.DB.DeleteNote(id)
+	if err != nil {
+		log.Println(err.Error())
+		utils.WriteInternalServerError(w)
+		return
+	}
+
 	utils.WriteJSON(w, note)
 }
 
 func (n *NoteRouter) createSharelink(w http.ResponseWriter, r *http.Request) {
 	id := GetIDParam(r)
 	if id < 0 {
-		utils.WriteJSON(w, "error") //! Temporary implementation
+		utils.WriteJSONError(w, "ID has to be a positive integer")
 		return
 	}
 
-	note := n.DB.GetNote(id)
-	if note.Sharelink == ""{
+	note, err := n.DB.GetNote(id)
+	if err != nil {
+		log.Println(err.Error())
+		utils.WriteInternalServerError(w)
+		return
+	}
+
+	if note.Sharelink == "" {
 		note.Sharelink = utils.CreateSharelink()
-		n.DB.UpdateNote(id, note)
+		_, err = n.DB.UpdateNote(id, note)
+		if err != nil {
+			log.Println(err.Error())
+			utils.WriteInternalServerError(w)
+			return
+		}
 	}
 
 	utils.WriteJSON(w, note)

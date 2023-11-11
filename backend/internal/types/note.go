@@ -8,5 +8,5 @@ type Note struct {
 }
 
 func ValidateNote(n Note) bool {
-	return n.ID > 0
+	return true
 }
