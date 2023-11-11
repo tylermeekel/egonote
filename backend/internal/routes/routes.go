@@ -8,10 +8,6 @@ import (
 	"github.com/tylermeekel/egonote/internal/data"
 )
 
-type Router interface{
-	Routes() *chi.Mux
-}
-
 // InitServerMux creates and returns a *chi.Mux
 // with all of the currently implemented routes
 func InitServerMux(db data.Database) *chi.Mux {
@@ -19,6 +15,9 @@ func InitServerMux(db data.Database) *chi.Mux {
 
 	noteRouter := NoteRouter{DB: db}
 	m.Mount("/notes", noteRouter.Routes())
+
+	userRouter := UserRouter{DB: db}
+	m.Mount("/users", userRouter.Routes())
 
 	return m
 }

@@ -13,23 +13,19 @@ import (
 	"github.com/tylermeekel/egonote/internal/routes"
 )
 
-// CreateNewApp initializes a new *Application
-// with a database and server connection and
-// returns it.
-
 // StartApp starts the server
 func StartApp() {
 	godotenv.Load()
 
 	port := os.Getenv("PORT")
 	if port == ""{
-		port = ":3000"
+		port = "3000"
 	}
 
-	//db := data.InitPostgres()
-	db := &data.TestDB{}
+	db := data.InitPostgres()
+	//db := &data.TestDB{}
 	mux := routes.InitServerMux(db)
 
 	log.Println("Server listening on", port)
-	log.Fatalln(http.ListenAndServe(port, mux))
+	log.Fatalln(http.ListenAndServe(":"+port, mux))
 }
