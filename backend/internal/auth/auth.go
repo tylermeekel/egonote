@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -12,13 +11,13 @@ import (
 )
 
 type Claims struct {
-	Username string
+	ID int
 	jwt.RegisteredClaims
 }
 
-func SignJWT(username string, expTime time.Time) (string, error) {
+func SignJWT(id int, expTime time.Time) (string, error) {
 	claims := &Claims{
-		Username: username,
+		ID: id,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expTime),
 		},
@@ -27,7 +26,7 @@ func SignJWT(username string, expTime time.Time) (string, error) {
 	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 }
 
-func parseJWT(tokenString string) (string, error) {
+func parseJWT(tokenString string) (int, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -36,40 +35,39 @@ func parseJWT(tokenString string) (string, error) {
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims.Username, nil
+		return claims.ID, nil
 	} else {
-		return "", errors.New("invalid token")
+		return 0, errors.New("invalid token")
 	}
 }
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("jwt_token")
-		if err != nil{
-			ctx := context.WithValue(r.Context(), "username", "")
+		if err != nil {
+			ctx := context.WithValue(r.Context(), "userID", -1)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 		jwt := cookie.Value
-		username, err := parseJWT(jwt)
-		if err != nil{
-			ctx := context.WithValue(r.Context(), "username", "")
+		userID, err := parseJWT(jwt)
+		if err != nil {
+			ctx := context.WithValue(r.Context(), "userID", -1)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
-		} else{
-			ctx := context.WithValue(r.Context(), "username", username)
-			fmt.Println(username)
+		} else {
+			ctx := context.WithValue(r.Context(), "userID", userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 	})
 }
 
-func getUsernameFromContext(r *http.Request) string {
-	username := r.Context().Value("username").(string)
-	return username
+func GetUserIDFromContext(r *http.Request) int {
+	userID := r.Context().Value("userID").(int)
+	return userID
 }

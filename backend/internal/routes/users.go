@@ -30,6 +30,14 @@ func (u *UserRouter) Routes() *chi.Mux {
 
 func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
 	jw := utils.NewJSONResponseWriter(w)
+
+	requestUserID := auth.GetUserIDFromContext(r)
+	if requestUserID != -1{
+		jw.AddError("login", "User already logged in")
+		jw.WriteJSON()
+		return
+	}
+
 	var givenCredentials types.User
 	err := json.NewDecoder(r.Body).Decode(&givenCredentials)
 	if err != nil {
@@ -37,7 +45,7 @@ func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
 		jw.AddInternalError()
 	}
 
-	dbCredentials, err := u.DB.GetUser(givenCredentials.Username)
+	user, err := u.DB.GetUser(givenCredentials.Username)
 	if err != nil {
 		log.Println(err.Error())
 		jw.AddError("login", "Username or Password Incorrect")
@@ -45,7 +53,7 @@ func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(dbCredentials.Password), []byte(givenCredentials.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(givenCredentials.Password))
 	if err != nil{
 		log.Println(err.Error())
 		jw.AddError("login", "Username or Password Incorrect")
@@ -55,7 +63,7 @@ func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
 
 
 	expTime := time.Now().Add(5*time.Hour)
-	signedString, err := auth.SignJWT(dbCredentials.Username, expTime)
+	signedString, err := auth.SignJWT(user.ID, expTime)
 
 	jwtCookie := http.Cookie{
 		Name: "jwt_token",
@@ -65,10 +73,19 @@ func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &jwtCookie)
 	jw.AddData("login", "login successful")
+	jw.WriteJSON()
 }
 
 func (u *UserRouter) registerUser(w http.ResponseWriter, r *http.Request) {
 	jw := utils.NewJSONResponseWriter(w)
+
+	requestUserID := auth.GetUserIDFromContext(r)
+	if requestUserID != -1{
+		jw.AddError("login", "User already logged in")
+		jw.WriteJSON()
+		return
+	}
+
 	var givenCredentials types.User
 	json.NewDecoder(r.Body).Decode(&givenCredentials)
 
@@ -88,7 +105,7 @@ func (u *UserRouter) registerUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = u.DB.CreateUser(givenCredentials.Username, string(hashedPassword))
+	newUserID, err := u.DB.CreateUser(givenCredentials.Username, string(hashedPassword))
 	if err != nil{
 		log.Println(err.Error())
 		jw.AddInternalError()
@@ -97,7 +114,7 @@ func (u *UserRouter) registerUser(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	expTime := time.Now().Add(5*time.Hour)
-	signedString, err := auth.SignJWT(givenCredentials.Username, expTime)
+	signedString, err := auth.SignJWT(newUserID, expTime)
 	if err != nil{
 		log.Println(err.Error())
 		jw.AddInternalError()
