@@ -5,32 +5,34 @@ import (
 	"net/http"
 )
 
-type JSONResponse struct {
-	Data any `json:"data"`
+type JSONResponseWriter struct {
+	Writer http.ResponseWriter `json:"-"`
+	Data   map[string]any      `json:"data:omitempty"`
+	Errors map[string][]string   `json:"errors:omitempty"`
 }
 
-type JSONErrorResponse struct {
-	Error string `json:"error"`
+func (jw *JSONResponseWriter) AddData(key string, value any){
+	if len(jw.Errors) == 0{
+		jw.Data[key] = value
+	}
 }
 
-func WriteJSON(w http.ResponseWriter, data any) {
-	res := JSONResponse{Data: data}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+func (jw *JSONResponseWriter) AddError(key, value string){
+	jw.Errors[key] = append(jw.Errors[key], value)
 }
 
-func WriteJSONError(w http.ResponseWriter, err string) {
-	res := JSONErrorResponse{Error: err}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+func (jw *JSONResponseWriter) AddInternalError(){
+	if _, ok := jw.Errors["internal"]; !ok{
+		jw.Errors["internal"] = []string{"internal server error"}
+	}
 }
 
-func WriteInternalServerError(w http.ResponseWriter) {
-	res := JSONErrorResponse{Error: "internal server error"}
+func (jw *JSONResponseWriter) WriteJSON() {
+	json.NewEncoder(jw.Writer).Encode(jw)
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(res)
+func NewJSONResponseWriter(w http.ResponseWriter) JSONResponseWriter{
+	return JSONResponseWriter{
+		Writer: w,
+	}
 }

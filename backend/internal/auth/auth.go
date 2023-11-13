@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -41,4 +44,32 @@ func parseJWT(tokenString string) (string, error) {
 	} else {
 		return "", errors.New("invalid token")
 	}
+}
+
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("jwt_token")
+		if err != nil{
+			ctx := context.WithValue(r.Context(), "username", "")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		jwt := cookie.Value
+		username, err := parseJWT(jwt)
+		if err != nil{
+			ctx := context.WithValue(r.Context(), "username", "")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		} else{
+			ctx := context.WithValue(r.Context(), "username", username)
+			fmt.Println(username)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+	})
+}
+
+func getUsernameFromContext(r *http.Request) string {
+	username := r.Context().Value("username").(string)
+	return username
 }

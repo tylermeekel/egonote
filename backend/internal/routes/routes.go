@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/tylermeekel/egonote/internal/auth"
 	"github.com/tylermeekel/egonote/internal/data"
 )
 
@@ -12,6 +13,8 @@ import (
 // with all of the currently implemented routes
 func InitServerMux(db data.Database) *chi.Mux {
 	m := chi.NewMux()
+
+	m.Use(auth.AuthMiddleware)
 
 	noteRouter := NoteRouter{DB: db}
 	m.Mount("/notes", noteRouter.Routes())

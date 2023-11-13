@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,25 +29,27 @@ func (u *UserRouter) Routes() *chi.Mux {
 }
 
 func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
+	jw := utils.NewJSONResponseWriter(w)
 	var givenCredentials types.User
 	err := json.NewDecoder(r.Body).Decode(&givenCredentials)
 	if err != nil {
 		log.Println(err.Error())
-		utils.WriteInternalServerError(w)
-		return
+		jw.AddInternalError()
 	}
 
 	dbCredentials, err := u.DB.GetUser(givenCredentials.Username)
 	if err != nil {
 		log.Println(err.Error())
-		utils.WriteJSONError(w, "Username or Password Incorrect")
+		jw.AddError("login", "Username or Password Incorrect")
+		jw.WriteJSON()
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(dbCredentials.Password), []byte(givenCredentials.Password))
 	if err != nil{
 		log.Println(err.Error())
-		utils.WriteJSONError(w, "Username or Password Incorrect")
+		jw.AddError("login", "Username or Password Incorrect")
+		jw.WriteJSON()
 		return
 	}
 
@@ -61,29 +64,35 @@ func (u *UserRouter) loginUser(w http.ResponseWriter, r *http.Request) {
 		Expires: expTime,
 	}
 	http.SetCookie(w, &jwtCookie)
-	utils.WriteJSON(w, "login successful")
+	jw.AddData("login", "login successful")
 }
 
 func (u *UserRouter) registerUser(w http.ResponseWriter, r *http.Request) {
+	jw := utils.NewJSONResponseWriter(w)
 	var givenCredentials types.User
 	json.NewDecoder(r.Body).Decode(&givenCredentials)
 
+	givenCredentials.Username = strings.ToLower(givenCredentials.Username)
+
 	if !types.ValidateUser(givenCredentials) {
-		utils.WriteJSONError(w, "Incorrect User Format") //! Add new implementation of WriteJSONError for users specifically
+		jw.AddError("logininfo", "Username or Password doesn't meet guidelines") //! Add new implementation of WriteJSONError for users specifically
+		jw.WriteJSON()
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(givenCredentials.Password), 10)
 	if err != nil{
 		log.Println(err.Error())
-		utils.WriteInternalServerError(w)
+		jw.AddInternalError()
+		jw.WriteJSON()
 		return
 	}
 
 	err = u.DB.CreateUser(givenCredentials.Username, string(hashedPassword))
 	if err != nil{
 		log.Println(err.Error())
-		utils.WriteInternalServerError(w)
+		jw.AddInternalError()
+		jw.WriteJSON()
 		return
 	}
 	
@@ -91,7 +100,8 @@ func (u *UserRouter) registerUser(w http.ResponseWriter, r *http.Request) {
 	signedString, err := auth.SignJWT(givenCredentials.Username, expTime)
 	if err != nil{
 		log.Println(err.Error())
-		utils.WriteInternalServerError(w)
+		jw.AddInternalError()
+		jw.WriteJSON()
 		return
 	}
 
@@ -102,5 +112,5 @@ func (u *UserRouter) registerUser(w http.ResponseWriter, r *http.Request) {
 		Expires: expTime,
 	}
 	http.SetCookie(w, &jwtCookie)
-	utils.WriteJSON(w, "register successful")
+	jw.AddData("register", "register successful")
 }
