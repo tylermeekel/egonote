@@ -10,4 +10,4 @@ require (
 	golang.org/x/crypto v0.15.0
 )
 
-require github.com/go-chi/cors v1.2.1 // indirect
+require github.com/go-chi/cors v1.2.1
